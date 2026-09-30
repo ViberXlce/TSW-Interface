@@ -11,6 +11,7 @@ public class TswInterfaceClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         ClientTickEvents.END_CLIENT_TICK.register(TswInterfaceClient::onTick);
+        TswHud.register();
     }
 
     /**

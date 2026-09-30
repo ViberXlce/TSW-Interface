@@ -10,5 +10,5 @@
 
 ## تعديلات سريعة
 - اللوقو: استبدل `src/main/resources/assets/tsw_interface/textures/gui/logo.png` بلوقو ND حقك (180x132 بكسل شفاف).
-- كروت الوصفات اللي على اليمين: القائمة `RECIPES` داخل `TswInventoryScreen.java`.
+- الـ HUD (الهوتبار والأنابيب وشريط الخبرة): الملف `TswHud.java`.
 - الألوان والأحجام: الثوابت في أول `TswInventoryScreen.java` (مساحة التصميم 1000x560).

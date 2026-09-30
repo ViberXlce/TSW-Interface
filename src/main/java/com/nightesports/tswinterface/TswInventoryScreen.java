@@ -17,15 +17,12 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.InventoryMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
 /**
  * TSW Interface - glass style inventory.
  *
- * Everything is laid out in a fixed 1000x560 "design space" that matches the reference mockup,
- * then scaled to fit whatever GUI size the player has.
+ * Everything is laid out in a fixed 1000x560 "design space", then scaled to fit the GUI size.
  */
 public class TswInventoryScreen extends Screen {
 
@@ -53,7 +50,7 @@ public class TswInventoryScreen extends Screen {
     // panels: x, y, w, h
     private static final int[] P_LEFT = {43, 125, 238, 310};
     private static final int[] P_GRID = {289, 123, 420, 312};
-    private static final int[] P_RIGHT = {719, 123, 238, 312};
+    private static final int[] P_RIGHT = {719, 123, 238, 112};
     private static final int[] P_BAR = {232, 462, 538, 72};
 
     // model box inside the left panel
@@ -62,35 +59,14 @@ public class TswInventoryScreen extends Screen {
     private static final int MODEL_X1 = 211;
     private static final int MODEL_Y1 = 425;
 
-    // scrolling crafting list
-    private static final int VP_X0 = 727;
-    private static final int VP_Y0 = 133;
-    private static final int VP_X1 = 939;
-    private static final int VP_Y1 = 425;
-    private static final int CARD_W = VP_X1 - VP_X0;
-    private static final int LIVE_H = 92;
-    private static final int CARD_H = 66;
-    private static final int GAP = 6;
-
-    // ---------- decorative recipe cards (edit freely) ----------
-    private record Recipe(Item result, Item[] grid) {
-    }
-
-    private static final Item N = null;
-
-    private static final List<Recipe> RECIPES = List.of(
-            new Recipe(Items.TORCH, new Item[]{N, Items.COAL, N, N, Items.STICK, N, N, N, N}),
-            new Recipe(Items.CRAFTING_TABLE, new Item[]{Items.OAK_PLANKS, Items.OAK_PLANKS, N, Items.OAK_PLANKS, Items.OAK_PLANKS, N, N, N, N}),
-            new Recipe(Items.CHEST, new Item[]{Items.OAK_PLANKS, Items.OAK_PLANKS, Items.OAK_PLANKS, Items.OAK_PLANKS, N, Items.OAK_PLANKS, Items.OAK_PLANKS, Items.OAK_PLANKS, Items.OAK_PLANKS}),
-            new Recipe(Items.FURNACE, new Item[]{Items.COBBLESTONE, Items.COBBLESTONE, Items.COBBLESTONE, Items.COBBLESTONE, N, Items.COBBLESTONE, Items.COBBLESTONE, Items.COBBLESTONE, Items.COBBLESTONE}),
-            new Recipe(Items.IRON_PICKAXE, new Item[]{Items.IRON_INGOT, Items.IRON_INGOT, Items.IRON_INGOT, N, Items.STICK, N, N, Items.STICK, N}),
-            new Recipe(Items.IRON_SWORD, new Item[]{N, Items.IRON_INGOT, N, N, Items.IRON_INGOT, N, N, Items.STICK, N}),
-            new Recipe(Items.BUCKET, new Item[]{Items.IRON_INGOT, N, Items.IRON_INGOT, N, Items.IRON_INGOT, N, N, N, N}),
-            new Recipe(Items.SHIELD, new Item[]{Items.OAK_PLANKS, Items.IRON_INGOT, Items.OAK_PLANKS, Items.OAK_PLANKS, Items.OAK_PLANKS, Items.OAK_PLANKS, N, Items.OAK_PLANKS, N})
-    );
+    // crafting card (inside the right panel)
+    private static final int CARD_X = 727;
+    private static final int CARD_Y = 133;
+    private static final int CARD_W = 212;
+    private static final int CARD_H = 92;
 
     // ---------- state ----------
-    private record SlotView(int index, int x, int y, int size, boolean locked, boolean scrolling) {
+    private record SlotView(int index, int x, int y, int size, boolean locked) {
     }
 
     private final LocalPlayer player;
@@ -101,7 +77,6 @@ public class TswInventoryScreen extends Screen {
     private float s = 1f;
     private float ox = 0f;
     private float oy = 0f;
-    private int scroll = 0;
 
     public TswInventoryScreen(LocalPlayer player) {
         super(Component.literal("TSW Interface"));
@@ -128,18 +103,13 @@ public class TswInventoryScreen extends Screen {
         return Math.round(oy + v * s);
     }
 
-    private int maxScroll() {
-        int content = LIVE_H + GAP + RECIPES.size() * (CARD_H + GAP) - GAP;
-        return Math.max(0, content - (VP_Y1 - VP_Y0));
-    }
-
     private void buildViews() {
         views.clear();
 
         // armor (menu 5..8) + offhand (45)
         int[] armor = {5, 6, 7, 8, 45};
         for (int i = 0; i < armor.length; i++) {
-            views.add(new SlotView(armor[i], ARMOR_X, ARMOR_Y + i * STEP, SLOT, false, false));
+            views.add(new SlotView(armor[i], ARMOR_X, ARMOR_Y + i * STEP, SLOT, false));
         }
 
         // 7x5 grid: first 27 cells = main inventory (menu 9..35), the rest are locked (decor)
@@ -147,31 +117,27 @@ public class TswInventoryScreen extends Screen {
             int c = k % GRID_COLS;
             int r = k / GRID_COLS;
             boolean locked = k >= 27;
-            views.add(new SlotView(locked ? -1 : 9 + k, GRID_X + c * STEP, GRID_Y + r * STEP, SLOT, locked, false));
+            views.add(new SlotView(locked ? -1 : 9 + k, GRID_X + c * STEP, GRID_Y + r * STEP, SLOT, locked));
         }
 
         // quick bar (menu 36..44)
         for (int i = 0; i < 9; i++) {
-            views.add(new SlotView(36 + i, BAR_X + i * STEP, BAR_Y, SLOT, false, false));
+            views.add(new SlotView(36 + i, BAR_X + i * STEP, BAR_Y, SLOT, false));
         }
 
-        // live 2x2 crafting + result (menu 1..4 and 0), inside the scrolling list
-        int cy = VP_Y0 - scroll;
-        int gx = VP_X0 + 78;
-        int gy = cy + 14;
+        // live 2x2 crafting (menu 1..4) + result (menu 0)
+        int gx = CARD_X + 78;
+        int gy = CARD_Y + 14;
         for (int i = 0; i < 4; i++) {
-            views.add(new SlotView(1 + i, gx + (i % 2) * 34, gy + (i / 2) * 34, 30, false, true));
+            views.add(new SlotView(1 + i, gx + (i % 2) * 34, gy + (i / 2) * 34, 30, false));
         }
-        views.add(new SlotView(0, VP_X0 + 164, cy + (LIVE_H - 40) / 2, 40, false, true));
+        views.add(new SlotView(0, CARD_X + 164, CARD_Y + (CARD_H - 40) / 2, 40, false));
     }
 
     private SlotView slotAt(double mx, double my) {
         for (int i = views.size() - 1; i >= 0; i--) {
             SlotView v = views.get(i);
             if (mx >= v.x() && mx < v.x() + v.size() && my >= v.y() && my < v.y() + v.size()) {
-                if (v.scrolling() && (mx < VP_X0 || mx >= VP_X1 || my < VP_Y0 || my >= VP_Y1)) {
-                    continue;
-                }
                 return v;
             }
         }
@@ -197,35 +163,9 @@ public class TswInventoryScreen extends Screen {
         g.pose().popMatrix();
     }
 
-    /** Rounded rectangle built from a handful of fills. */
-    private static void rrect(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
-        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
-        if (r == 0) {
-            g.fill(x, y, x + w, y + h, color);
-            return;
-        }
-        int[] ins = new int[r];
-        for (int i = 0; i < r; i++) {
-            double cy = r - i - 0.5;
-            ins[i] = (int) Math.round(r - Math.sqrt(r * r - cy * cy));
-        }
-        int i = 0;
-        while (i < r) {
-            int j = i;
-            while (j + 1 < r && ins[j + 1] == ins[i]) {
-                j++;
-            }
-            int inset = ins[i];
-            g.fill(x + inset, y + i, x + w - inset, y + j + 1, color);
-            g.fill(x + inset, y + h - 1 - j, x + w - inset, y + h - i, color);
-            i = j + 1;
-        }
-        g.fill(x, y + r, x + w, y + h - r, color);
-    }
-
     private void panel(GuiGraphics g, int[] p) {
-        rrect(g, p[0], p[1], p[2], p[3], 16, 0x70FFFFFF);
-        rrect(g, p[0] + 1, p[1] + 1, p[2] - 2, p[3] - 2, 15, 0xC8262D3D);
+        Gfx.rrect(g, p[0], p[1], p[2], p[3], 16, 0x70FFFFFF);
+        Gfx.rrect(g, p[0] + 1, p[1] + 1, p[2] - 2, p[3] - 2, 15, 0xC8262D3D);
     }
 
     private void text(GuiGraphics g, String str, float x, float y, float sc, int color, boolean centered) {
@@ -284,7 +224,6 @@ public class TswInventoryScreen extends Screen {
         double my = (mouseY - oy) / s;
         hovered = slotAt(mx, my);
 
-        // ---- static part ----
         begin(g);
         drawLogo(g);
         panel(g, P_LEFT);
@@ -292,15 +231,13 @@ public class TswInventoryScreen extends Screen {
         panel(g, P_RIGHT);
         panel(g, P_BAR);
         drawTitles(g);
+        drawCraftingCard(g);
         for (SlotView v : views) {
-            if (!v.scrolling()) {
-                drawSlot(g, v, v == hovered);
-            }
+            drawSlot(g, v, v == hovered);
         }
-        drawScrollbar(g);
         end(g);
 
-        // ---- player model with the real skin (uses real screen coordinates) ----
+        // player model with the real skin (real screen coordinates)
         int boxH = MODEL_Y1 - MODEL_Y0;
         InventoryScreen.renderEntityInInventoryFollowsMouse(
                 g,
@@ -310,14 +247,7 @@ public class TswInventoryScreen extends Screen {
                 (float) mouseX, (float) mouseY,
                 this.player);
 
-        // ---- crafting list (clipped) ----
-        g.enableScissor(rx(VP_X0), ry(VP_Y0), rx(VP_X1), ry(VP_Y1));
-        begin(g);
-        drawScrollContent(g);
-        end(g);
-        g.disableScissor();
-
-        // ---- held item / tooltip ----
+        // held item / tooltip
         ItemStack carried = this.menu.getCarried();
         if (!carried.isEmpty()) {
             float box = 16f * Math.max(1f, s * 2f) + 12f;
@@ -333,19 +263,24 @@ public class TswInventoryScreen extends Screen {
     private void drawLogo(GuiGraphics g) {
         var pose = g.pose();
         pose.pushMatrix();
-        pose.translate(455, 26);
+        pose.translate(400, 14);
         pose.scale(0.5f, 0.5f);
-        g.blit(RenderPipelines.GUI_TEXTURED, LOGO, 0, 0, 0f, 0f, 180, 132, 180, 132);
+        g.blit(RenderPipelines.GUI_TEXTURED, LOGO, 0, 0, 0f, 0f, 400, 160, 400, 160);
         pose.popMatrix();
     }
 
     private void drawTitles(GuiGraphics g) {
-        String name = this.player.getName().getString();
-        name = this.font.plainSubstrByWidth(name, 70);
+        String name = this.font.plainSubstrByWidth(this.player.getName().getString(), 90);
         text(g, name, 55, 102, 1.7f, 0xFFFFFFFF, false);
-        text(g, "Level " + this.player.experienceLevel, 210, 102, 1.7f, 0xFFFFFFFF, false);
         text(g, "Armor", 133, 146, 1.5f, 0xFFFFFFFF, true);
         text(g, "Quick Bar", 500, 444, 1.7f, 0xFFFFFFFF, true);
+    }
+
+    private void drawCraftingCard(GuiGraphics g) {
+        Gfx.rrect(g, CARD_X, CARD_Y, CARD_W, CARD_H, 12, 0x88FFFFFF);
+        Gfx.rrect(g, CARD_X + 1, CARD_Y + 1, CARD_W - 2, CARD_H - 2, 11, 0xE05A6377);
+        text(g, "Crafting", CARD_X + 12, CARD_Y + CARD_H / 2f - 7, 1.3f, 0xFFFFFFFF, false);
+        arrow(g, CARD_X + 148, CARD_Y + CARD_H / 2 - 2, 0xFFDDE2F0);
     }
 
     private void drawSlot(GuiGraphics g, SlotView v, boolean hover) {
@@ -354,8 +289,8 @@ public class TswInventoryScreen extends Screen {
         int sz = v.size();
 
         if (v.locked()) {
-            rrect(g, x, y, sz, sz, 9, 0x22FFFFFF);
-            rrect(g, x + 1, y + 1, sz - 2, sz - 2, 8, 0x90161B26);
+            Gfx.rrect(g, x, y, sz, sz, 9, 0x22FFFFFF);
+            Gfx.rrect(g, x + 1, y + 1, sz - 2, sz - 2, 8, 0x90161B26);
             return;
         }
 
@@ -364,8 +299,9 @@ public class TswInventoryScreen extends Screen {
         int r = sz >= 44 ? 9 : 6;
         int bw = selected ? 2 : 1;
 
-        rrect(g, x, y, sz, sz, r, selected ? 0xFFA66BFF : 0x66FFFFFF);
-        rrect(g, x + bw, y + bw, sz - 2 * bw, sz - 2 * bw, Math.max(1, r - bw), hover ? 0xF0667088 : 0xE0464E62);
+        Gfx.rrect(g, x, y, sz, sz, r, selected ? 0xFFA66BFF : 0x66FFFFFF);
+        Gfx.rrect(g, x + bw, y + bw, sz - 2 * bw, sz - 2 * bw, Math.max(1, r - bw),
+                hover ? 0xF0667088 : 0xE0464E62);
 
         Slot slot = this.menu.getSlot(v.index());
         ItemStack st = slot.getItem();
@@ -391,70 +327,6 @@ public class TswInventoryScreen extends Screen {
         }
     }
 
-    private void drawScrollbar(GuiGraphics g) {
-        int tx = 946;
-        int th = VP_Y1 - VP_Y0;
-        rrect(g, tx, VP_Y0, 4, th, 2, 0x33FFFFFF);
-        int max = maxScroll();
-        int content = th + max;
-        int thumb = Math.max(24, th * th / Math.max(content, 1));
-        int ty = VP_Y0 + (max == 0 ? 0 : (int) ((th - thumb) * (scroll / (float) max)));
-        rrect(g, tx, ty, 4, thumb, 2, 0xAAFFFFFF);
-    }
-
-    private void drawScrollContent(GuiGraphics g) {
-        int x = VP_X0;
-        int y = VP_Y0 - scroll;
-
-        // live crafting card
-        rrect(g, x, y, CARD_W, LIVE_H, 12, 0x88FFFFFF);
-        rrect(g, x + 1, y + 1, CARD_W - 2, LIVE_H - 2, 11, 0xE05A6377);
-        text(g, "Crafting", x + 12, y + LIVE_H / 2f - 7, 1.3f, 0xFFFFFFFF, false);
-        arrow(g, x + 148, y + LIVE_H / 2 - 2, 0xFFDDE2F0);
-
-        for (SlotView v : views) {
-            if (v.scrolling()) {
-                drawSlot(g, v, v == hovered);
-            }
-        }
-
-        // decorative recipe cards
-        int cy = y + LIVE_H + GAP;
-        for (Recipe rec : RECIPES) {
-            if (cy + CARD_H >= VP_Y0 && cy <= VP_Y1) {
-                drawRecipeCard(g, x, cy, rec);
-            }
-            cy += CARD_H + GAP;
-        }
-    }
-
-    private void drawRecipeCard(GuiGraphics g, int x, int y, Recipe rec) {
-        rrect(g, x, y, CARD_W, CARD_H, 12, 0x55FFFFFF);
-        rrect(g, x + 1, y + 1, CARD_W - 2, CARD_H - 2, 11, 0xC03A4152);
-
-        ItemStack result = new ItemStack(rec.result());
-        String name = this.font.plainSubstrByWidth(result.getHoverName().getString(), 68);
-        text(g, name, x + 10, y + CARD_H / 2f - 4, 0.95f, 0xFFFFFFFF, false);
-
-        int gx = x + 78;
-        int gy = y + 6;
-        for (int i = 0; i < 9; i++) {
-            int cx = gx + (i % 3) * 18;
-            int cyy = gy + (i / 3) * 18;
-            rrect(g, cx, cyy, 17, 17, 3, 0x55101420);
-            Item it = rec.grid()[i];
-            if (it != null) {
-                drawItem(g, new ItemStack(it), cx, cyy, 17, 1f);
-            }
-        }
-
-        arrow(g, x + 138, y + CARD_H / 2 - 2, 0xFFDDE2F0);
-
-        rrect(g, x + 158, y + 16, 34, 34, 7, 0x88FFFFFF);
-        rrect(g, x + 159, y + 17, 32, 32, 6, 0xE04B5468);
-        drawItem(g, result, x + 159, y + 17, 32, 8f);
-    }
-
     // =====================================================================
     // input
     // =====================================================================
@@ -472,13 +344,14 @@ public class TswInventoryScreen extends Screen {
         double my = (event.y() - oy) / s;
         int button = event.button();
 
-        SlotView v = slotAt(mx, my);
+        // use exactly the slot that is highlighted on screen; fall back to the event position
+        SlotView v = hovered != null ? hovered : slotAt(mx, my);
         if (v != null) {
             if (v.locked()) {
                 return true;
             }
-            ClickType type = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 ? ClickType.QUICK_MOVE : ClickType.PICKUP;
-            slotClick(v.index(), button, type);
+            boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+            slotClick(v.index(), button, shift ? ClickType.QUICK_MOVE : ClickType.PICKUP);
             return true;
         }
 
@@ -489,17 +362,6 @@ public class TswInventoryScreen extends Screen {
             return true;
         }
         return super.mouseClicked(event, doubleClick);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        double mx = (mouseX - ox) / s;
-        double my = (mouseY - oy) / s;
-        if (inside(P_RIGHT, mx, my)) {
-            scroll = (int) Math.max(0, Math.min(maxScroll(), scroll - scrollY * 24));
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     @Override
@@ -521,7 +383,8 @@ public class TswInventoryScreen extends Screen {
                     return true;
                 }
                 if (this.minecraft.options.keyDrop.matches(event)) {
-                    slotClick(hovered.index(), (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0 ? 1 : 0, ClickType.THROW);
+                    boolean ctrl = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
+                    slotClick(hovered.index(), ctrl ? 1 : 0, ClickType.THROW);
                     return true;
                 }
             }
