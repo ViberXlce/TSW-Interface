@@ -24,6 +24,9 @@ public final class TswHud {
     private static final int PURPLE = 0xFFA66BFF;
     private static final int PURPLE_LIGHT = 0xFFD9C2FF;
 
+    // full thirst tube empties after 4 hours of normal play (20 ticks * 3600 s * 4 h)
+    private static final float THIRST_PER_TICK = 1f / (20f * 3600f * 4f);
+
     // animated state (updated every client tick)
     private static float ghostHealth = 1f;
     private static float thirst = 1f;
@@ -95,7 +98,7 @@ public final class TswHud {
         }
 
         // thirst: slow drain (client-side visual), refill after drinking a potion
-        thirst = Math.max(0f, thirst - (p.isSprinting() ? 0.00024f : 0.00008f));
+        thirst = Math.max(0f, thirst - (p.isSprinting() ? 2f : 1f) * THIRST_PER_TICK);
         boolean drinking = p.isUsingItem() && p.getUseItem().is(Items.POTION);
         if (wasDrinking && !p.isUsingItem()) {
             thirst = Math.min(1f, thirst + 0.35f);
@@ -172,9 +175,9 @@ public final class TswHud {
     }
 
     private static void drawVitals(GuiGraphics g, Minecraft mc, LocalPlayer p, int screenH) {
-        int tw = 12;
-        int th = 130;
-        int gap = 8;
+        int tw = 10;
+        int th = 72;
+        int gap = 10;
         int x = 10;
         int y = screenH - 10 - th;
 
@@ -183,7 +186,7 @@ public final class TswHud {
 
         // left to right: blood, water, food
         drawTube(g, x, y, tw, th, hp, ghostHealth, 0xFFC8102E, 0xFFFF6A80, 0xFFFFB3BF);
-        centeredText(g, mc, String.valueOf(Math.round(p.getHealth())), x + tw / 2, y - 11, 0xFFFFC2CB);
+        centeredText(g, mc, String.valueOf(Math.round(hp * 100f)), x + tw / 2, y - 11, 0xFFFFC2CB);
 
         int x2 = x + tw + gap;
         drawTube(g, x2, y, tw, th, thirst, thirst, 0xFF2E8BFF, 0xFF9CD0FF, 0xFF9CD0FF);
