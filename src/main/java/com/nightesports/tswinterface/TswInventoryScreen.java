@@ -477,7 +477,7 @@ public class TswInventoryScreen extends Screen {
             if (v.locked()) {
                 return true;
             }
-            ClickType type = Screen.hasShiftDown() ? ClickType.QUICK_MOVE : ClickType.PICKUP;
+            ClickType type = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0 ? ClickType.QUICK_MOVE : ClickType.PICKUP;
             slotClick(v.index(), button, type);
             return true;
         }
@@ -521,7 +521,7 @@ public class TswInventoryScreen extends Screen {
                     return true;
                 }
                 if (this.minecraft.options.keyDrop.matches(event)) {
-                    slotClick(hovered.index(), Screen.hasControlDown() ? 1 : 0, ClickType.THROW);
+                    slotClick(hovered.index(), (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0 ? 1 : 0, ClickType.THROW);
                     return true;
                 }
             }
