@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
@@ -27,9 +28,15 @@ public final class TswHud {
     // full thirst tube empties after 4 hours of normal play (20 ticks * 3600 s * 4 h)
     private static final float THIRST_PER_TICK = 1f / (20f * 3600f * 4f);
 
+    // full food tube empties after 8 hours of normal play
+    private static final float FOOD_PER_TICK = 1f / (20f * 3600f * 8f);
+
     // animated state (updated every client tick)
     private static float ghostHealth = 1f;
     private static float thirst = 1f;
+    private static float satiety = 1f;
+    private static int lastFood = -1;
+    private static int fxTicks = 0;
     private static float xpShown = 0f;
     private static int lastLevel = -1;
     private static int doubleTickIn = -1;
@@ -64,6 +71,7 @@ public final class TswHud {
         LocalPlayer p = mc.player;
         if (p == null) {
             lastLevel = -1;
+            lastFood = -1;
             return;
         }
 
@@ -85,6 +93,7 @@ public final class TswHud {
         // level up sounds: one tick per level, double tick every 10 levels
         if (lastLevel >= 0 && level > lastLevel) {
             tickSound(mc, 1.5f);
+            fxTicks = 30;
             if (level / 10 > lastLevel / 10) {
                 doubleTickIn = 4;
             }
@@ -95,6 +104,28 @@ public final class TswHud {
             if (doubleTickIn == 0) {
                 tickSound(mc, 1.9f);
             }
+        }
+
+        // food tube: slow drain (client-side visual), refills when vanilla food goes up (eating)
+        int foodLevel = p.getFoodData().getFoodLevel();
+        if (lastFood < 0) {
+            satiety = foodLevel / 20f;
+        } else if (foodLevel > lastFood) {
+            satiety = Math.min(1f, satiety + (foodLevel - lastFood) / 20f);
+        }
+        lastFood = foodLevel;
+        satiety = Math.max(0f, satiety - (p.isSprinting() ? 2f : 1f) * FOOD_PER_TICK);
+
+        // level-up particles (only you can see these)
+        if (fxTicks > 0 && mc.level != null) {
+            for (int i = 0; i < 3; i++) {
+                double a = fxTicks * 0.5 + i * (Math.PI * 2.0 / 3.0);
+                double rise = (30 - fxTicks) * 0.07;
+                mc.level.addParticle(ParticleTypes.END_ROD,
+                        p.getX() + Math.cos(a) * 0.9, p.getY() + 0.1 + rise, p.getZ() + Math.sin(a) * 0.9,
+                        0.0, 0.02, 0.0);
+            }
+            fxTicks--;
         }
 
         // thirst: slow drain (client-side visual), refill after drinking a potion
@@ -182,7 +213,7 @@ public final class TswHud {
         int y = screenH - 10 - th;
 
         float hp = Mth.clamp(p.getHealth() / Math.max(1f, p.getMaxHealth()), 0f, 1f);
-        float food = Mth.clamp(p.getFoodData().getFoodLevel() / 20f, 0f, 1f);
+        float food = Mth.clamp(satiety, 0f, 1f);
 
         // left to right: blood, water, food
         drawTube(g, x, y, tw, th, hp, ghostHealth, 0xFFC8102E, 0xFFFF6A80, 0xFFFFB3BF);
@@ -194,7 +225,7 @@ public final class TswHud {
 
         int x3 = x2 + tw + gap;
         drawTube(g, x3, y, tw, th, food, food, 0xFFE09A2B, 0xFFFFD98A, 0xFFFFD98A);
-        centeredText(g, mc, String.valueOf(p.getFoodData().getFoodLevel()), x3 + tw / 2, y - 11, 0xFFFFE2A8);
+        centeredText(g, mc, String.valueOf(Math.round(food * 100f)), x3 + tw / 2, y - 11, 0xFFFFE2A8);
 
         int armor = p.getArmorValue();
         if (armor > 0) {
