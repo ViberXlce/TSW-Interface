@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "tsw_interface",
+  "version": "${version}",
+  "name": "TSW Interface",
+  "description": "Custom glass-style inventory interface. Press E to open it instead of the vanilla inventory.",
+  "authors": ["NIGHT Esports"],
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "client": ["com.nightesports.tswinterface.TswInterfaceClient"]
+  },
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
