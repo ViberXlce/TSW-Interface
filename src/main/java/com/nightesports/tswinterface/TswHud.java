@@ -127,7 +127,7 @@ public final class TswHud {
         drawHotbar(g, mc, p, barX, barY);
 
         if (mc.gameMode.canHurtPlayer()) {
-            drawVitals(g, mc, p, barX, barY);
+            drawVitals(g, mc, p, h);
         }
         drawProfile(g, mc, p, w);
     }
@@ -171,54 +171,68 @@ public final class TswHud {
         }
     }
 
-    private static void drawVitals(GuiGraphics g, Minecraft mc, LocalPlayer p, int barX, int barY) {
-        int tw = 120;
-        int th = 10;
-        int gap = 4;
-        int y = barY - 8 - (3 * th + 2 * gap);
+    private static void drawVitals(GuiGraphics g, Minecraft mc, LocalPlayer p, int screenH) {
+        int tw = 12;
+        int th = 130;
+        int gap = 8;
+        int x = 10;
+        int y = screenH - 10 - th;
 
         float hp = Mth.clamp(p.getHealth() / Math.max(1f, p.getMaxHealth()), 0f, 1f);
         float food = Mth.clamp(p.getFoodData().getFoodLevel() / 20f, 0f, 1f);
 
-        // blood (top), water (middle), food (bottom)
-        drawTube(g, barX, y, tw, th, hp, ghostHealth, 0xFFC8102E, 0xFFFF6A80, 0xFFFFB3BF);
-        text(g, mc, String.valueOf(Math.round(p.getHealth())), barX + tw + 5, y + 1, 0xFFFFC2CB);
+        // left to right: blood, water, food
+        drawTube(g, x, y, tw, th, hp, ghostHealth, 0xFFC8102E, 0xFFFF6A80, 0xFFFFB3BF);
+        centeredText(g, mc, String.valueOf(Math.round(p.getHealth())), x + tw / 2, y - 11, 0xFFFFC2CB);
+
+        int x2 = x + tw + gap;
+        drawTube(g, x2, y, tw, th, thirst, thirst, 0xFF2E8BFF, 0xFF9CD0FF, 0xFF9CD0FF);
+        centeredText(g, mc, Math.round(thirst * 100f) + "%", x2 + tw / 2, y - 11, 0xFFB9DBFF);
+
+        int x3 = x2 + tw + gap;
+        drawTube(g, x3, y, tw, th, food, food, 0xFFE09A2B, 0xFFFFD98A, 0xFFFFD98A);
+        centeredText(g, mc, String.valueOf(p.getFoodData().getFoodLevel()), x3 + tw / 2, y - 11, 0xFFFFE2A8);
+
         int armor = p.getArmorValue();
         if (armor > 0) {
-            text(g, mc, "ARM " + armor, barX + tw + 28, y + 1, 0xFFC7CEDD);
+            centeredText(g, mc, "ARM " + armor, x + (3 * tw + 2 * gap) / 2, y - 22, 0xFFC7CEDD);
         }
-
-        int y2 = y + th + gap;
-        drawTube(g, barX, y2, tw, th, thirst, thirst, 0xFF2E8BFF, 0xFF9CD0FF, 0xFF9CD0FF);
-        text(g, mc, Math.round(thirst * 100f) + "%", barX + tw + 5, y2 + 1, 0xFFB9DBFF);
-
-        int y3 = y2 + th + gap;
-        drawTube(g, barX, y3, tw, th, food, food, 0xFFE09A2B, 0xFFFFD98A, 0xFFFFD98A);
-        text(g, mc, String.valueOf(p.getFoodData().getFoodLevel()), barX + tw + 5, y3 + 1, 0xFFFFE2A8);
     }
 
-    /** A glass tube: dark interior, coloured liquid, light trailing part and a glossy strip. */
+    /** A vertical glass tube: dark interior, liquid rising from the bottom, light trailing part, gloss strip. */
     private static void drawTube(GuiGraphics g, int x, int y, int w, int h,
                                  float frac, float ghost, int color, int shine, int ghostColor) {
-        Gfx.rrect(g, x, y, w, h, h / 2, 0xAAFFFFFF);
-        Gfx.rrect(g, x + 1, y + 1, w - 2, h - 2, h / 2 - 1, 0xF0141822);
+        Gfx.rrect(g, x, y, w, h, w / 2, 0xAAFFFFFF);
+        Gfx.rrect(g, x + 1, y + 1, w - 2, h - 2, w / 2 - 1, 0xF0141822);
 
         int ix = x + 2;
         int iy = y + 2;
-        int ih = h - 4;
         int iw = w - 4;
+        int ih = h - 4;
 
         if (ghost > frac) {
-            int gw = Math.max(ih, Math.round(iw * ghost));
-            Gfx.rrect(g, ix, iy, gw, ih, ih / 2, (ghostColor & 0x00FFFFFF) | 0x99000000);
+            int gh = Math.max(iw, Math.round(ih * ghost));
+            Gfx.rrect(g, ix, iy + ih - gh, iw, gh, iw / 2, (ghostColor & 0x00FFFFFF) | 0x99000000);
         }
         if (frac > 0.001f) {
-            int fw = Math.max(ih, Math.round(iw * frac));
-            Gfx.rrect(g, ix, iy, fw, ih, ih / 2, color);
-            if (fw > 8) {
-                g.fill(ix + 3, iy + 1, ix + fw - 3, iy + 2, (shine & 0x00FFFFFF) | 0x99000000);
+            int lh = Math.max(iw, Math.round(ih * frac));
+            int ly = iy + ih - lh;
+            Gfx.rrect(g, ix, ly, iw, lh, iw / 2, color);
+            if (lh > 10) {
+                g.fill(ix + 1, ly + 3, ix + 2, iy + ih - 3, (shine & 0x00FFFFFF) | 0x99000000);
             }
         }
+    }
+
+    private static void centeredText(GuiGraphics g, Minecraft mc, String s, int cx, int y, int color) {
+        float sc = 0.8f;
+        float w = mc.font.width(s) * sc;
+        var pose = g.pose();
+        pose.pushMatrix();
+        pose.translate(cx - w / 2f, y);
+        pose.scale(sc, sc);
+        g.drawString(mc.font, s, 0, 0, color);
+        pose.popMatrix();
     }
 
     private static void text(GuiGraphics g, Minecraft mc, String s, int x, int y, int color) {
