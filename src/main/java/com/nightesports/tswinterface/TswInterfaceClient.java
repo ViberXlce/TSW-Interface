@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.advancements.AdvancementsScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.resources.Identifier;
 
@@ -37,6 +38,11 @@ public class TswInterfaceClient implements ClientModInitializer {
         // swap the vanilla survival inventory for the TSW screen within the same tick
         if (mc.screen instanceof InventoryScreen && !mc.player.isCreative()) {
             mc.setScreen(new TswInventoryScreen(mc.player));
+        }
+
+        // L is also the vanilla advancements key: swap that screen for the Quest Log
+        if (mc.screen instanceof AdvancementsScreen) {
+            mc.setScreen(new QuestLogScreen());
         }
 
         // L = quest log
